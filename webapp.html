@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game</title>
+  <link rel="stylesheet" href="css/stylesheet.css">
+  <style>
+    .game-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 40px 0 10px 0;
+      flex-direction: column;
+    }
+
+    canvas {
+      background-color: white;
+      border: 3px solid #003da5;
+      border-radius: 10px;
+    }
+
+    .instructions {
+      margin-top: 10px;
+      font-size: 16px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>BYU vs Utah Football</h1>
+
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="football.html">Scratch</a></li>
+        <li><a href="resume.html">Resume</a></li>
+        <li><a href="webapp.html" class="active">Game</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <div class="game-container">
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div class="instructions">Use arrow keys to move | Avoid the Ute logo!</div>
+      </div>
+
+      <!-- <p>Try to score as many points as possible by helping the BYU snake eat the footballs! Each time you eat one, a Ute logo will appear randomly — avoid it or the game ends.</p> -->
+    </div>
+  </main>
+
+  <footer>
+    <p>Braden Fisher | Information Systems 201</p>
+  </footer>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const box = 20;
+    let snake = [{ x: 9 * box, y: 10 * box }];
+    let direction = null;
+    let football = randomPosition();
+    let uteLogo = randomPosition(); // 🔹 Ute logo appears from the start
+    let score = 0;
+    let gameRunning = false;
+    let game;
+
+    const footballImg = new Image();
+    footballImg.src = "images/football.png";
+
+    const uteImg = new Image();
+    uteImg.src = "images/ute.png";
+
+    const byuImg = new Image();
+    byuImg.src = "images/byu.png";
+
+    // Prevent arrow keys from scrolling the page
+    window.addEventListener("keydown", function(e) {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+      }
+    });
+
+    document.addEventListener("keydown", directionControl);
+
+    function directionControl(event) {
+      if (!gameRunning) return;
+      if (event.key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
+      else if (event.key === "ArrowUp" && direction !== "DOWN") direction = "UP";
+      else if (event.key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
+      else if (event.key === "ArrowDown" && direction !== "UP") direction = "DOWN";
+    }
+
+    function randomPosition() {
+      return {
+        x: Math.floor(Math.random() * 19 + 1) * box,
+        y: Math.floor(Math.random() * 19 + 1) * box,
+      };
+    }
+
+    function collision(head, array) {
+      return array.some(segment => head.x === segment.x && head.y === segment.y);
+    }
+
+    function drawStartScreen() {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#003da5";
+      ctx.font = "24px Arial";
+      ctx.fillText("Click to Start the Game", 80, 200);
+    }
+
+    function startGame() {
+      snake = [{ x: 9 * box, y: 10 * box }];
+      direction = null;
+      score = 0;
+      football = randomPosition();
+      uteLogo = randomPosition(); // 🔹 Reset with a Ute from the start
+      gameRunning = true;
+      clearInterval(game);
+      game = setInterval(draw, 100);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw snake
+      for (let i = 0; i < snake.length; i++) {
+        if (i === 0) {
+          ctx.drawImage(byuImg, snake[i].x, snake[i].y, box, box);
+        } else {
+          ctx.fillStyle = "#003da5";
+          ctx.fillRect(snake[i].x, snake[i].y, box, box);
+        }
+      }
+
+      // Draw football
+      ctx.drawImage(footballImg, football.x, football.y, box, box);
+
+      // Draw Ute logo
+      ctx.drawImage(uteImg, uteLogo.x, uteLogo.y, box, box);
+
+      // Display score
+      ctx.fillStyle = "#000";
+      ctx.font = "20px Arial";
+      ctx.fillText("Score: " + score, box, box * 1.2);
+
+      let snakeX = snake[0].x;
+      let snakeY = snake[0].y;
+
+      if (direction === "LEFT") snakeX -= box;
+      if (direction === "UP") snakeY -= box;
+      if (direction === "RIGHT") snakeX += box;
+      if (direction === "DOWN") snakeY += box;
+
+      // Check football collision
+      if (snakeX === football.x && snakeY === football.y) {
+        score++;
+        football = randomPosition();
+        uteLogo = randomPosition(); // 🔹 Ute changes position each time you score
+      } else {
+        snake.pop();
+      }
+
+      const newHead = { x: snakeX, y: snakeY };
+
+      // Wall or self collision
+      if (
+        snakeX < 0 ||
+        snakeY < 0 ||
+        snakeX >= canvas.width ||
+        snakeY >= canvas.height ||
+        collision(newHead, snake)
+      ) {
+        endGame("Game Over!");
+        return;
+      }
+
+      // Ute logo collision
+      if (snakeX === uteLogo.x && snakeY === uteLogo.y) {
+        endGame("You hit the Ute logo!");
+        return;
+      }
+
+      snake.unshift(newHead);
+    }
+
+    function endGame(message) {
+      clearInterval(game);
+      gameRunning = false;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#003da5";
+      ctx.font = "24px Arial";
+      const textWidth = ctx.measureText(message).width;
+      ctx.fillText(message, (canvas.width - textWidth) / 2, 200);
+      ctx.font = "18px Arial";
+      ctx.fillText("Click to Play Again", 120, 240);
+    }
+
+    canvas.addEventListener("click", function () {
+      if (!gameRunning) startGame();
+    });
+
+    drawStartScreen();
+  </script>
+</body>
+</html>
